@@ -1,0 +1,150 @@
+From 66a87da8e0e87162e80788093e7cbc4d58209521 Mon Sep 17 00:00:00 2001
+From: Yang Zhang <yangznt@gmail.com>
+Date: Mon, 2 Aug 2021 14:43:25 -0700
+Subject: [PATCH] Create Patch File
+
+---
+ .gitignore    | 22 +---------------------
+ src/App.tsx   | 33 ++++++++++++++++++++++++++-------
+ src/Graph.tsx | 16 +++++++++++++---
+ 3 files changed, 40 insertions(+), 31 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 4d29575..4119516 100755
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,23 +1,3 @@
+-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+ 
+-# dependencies
+-/node_modules
+-/.pnp
+-.pnp.js
++node_modules/
+ 
+-# testing
+-/coverage
+-
+-# production
+-/build
+-
+-# misc
+-.DS_Store
+-.env.local
+-.env.development.local
+-.env.test.local
+-.env.production.local
+-
+-npm-debug.log*
+-yarn-debug.log*
+-yarn-error.log*
+diff --git a/src/App.tsx b/src/App.tsx
+index 0728518..6a25f14 100755
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -8,6 +8,7 @@ import './App.css';
+  */
+ interface IState {
+   data: ServerRespond[],
++  showGraph: Boolean
+ }
+ 
+ /**
+@@ -22,6 +23,8 @@ class App extends Component<{}, IState> {
+       // data saves the server responds.
+       // We use this state to parse data down to the child element (Graph) as element property
+       data: [],
++      //not automatically default show graph but after clicking the button
++      showGraph: false
+     };
+   }
+ 
+@@ -29,20 +32,36 @@ class App extends Component<{}, IState> {
+    * Render Graph react component with state.data parse as property data
+    */
+   renderGraph() {
+-    return (<Graph data={this.state.data}/>)
++    //only when showGraph is true
++    if(this.state.showGraph){
++      return (<Graph data={this.state.data}/>)
++    }
+   }
+ 
+   /**
+    * Get new data from server and update the state with the new data
+    */
+   getDataFromServer() {
+-    DataStreamer.getData((serverResponds: ServerRespond[]) => {
+-      // Update the state by creating a new array of data that consists of
+-      // Previous data in the state and the new data from server
+-      this.setState({ data: [...this.state.data, ...serverResponds] });
+-    });
+-  }
++    //modify to contact the server and get data from it continuously
++    //let i as the guard value to count the request/response times,>1000 clear the interval
++    let i = 0;
++    const interval = setInterval(()=>{
++      DataStreamer.getData((serverResponds: ServerRespond[]) => {
++        // Update the state by creating a new array of data that consists of
++        // Previous data in the state and the new data from server
++        //use setState outside constructor
++        this.setState({ data: serverResponds,
++          showGraph: true
+ 
++         });
++      });
++      i++;
++      if(i>1000){
++        clearInterval(interval);
++      }
++       //execute the func every 100ms
++    }, 100)
++  }
+   /**
+    * Render the App react component
+    */
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index ec1430e..8d4db18 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -14,7 +14,7 @@ interface IProps {
+  * Perspective library adds load to HTMLElement prototype.
+  * This interface acts as a wrapper for Typescript compiler.
+  */
+-interface PerspectiveViewerElement {
++interface PerspectiveViewerElement extends HTMLElement {
+   load: (table: Table) => void,
+ }
+ 
+@@ -32,7 +32,8 @@ class Graph extends Component<IProps, {}> {
+ 
+   componentDidMount() {
+     // Get element to attach the table from the DOM.
+-    const elem: PerspectiveViewerElement = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
++    //assign straight to const elem the result of 
++    const elem = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
+ 
+     const schema = {
+       stock: 'string',
+@@ -46,8 +47,17 @@ class Graph extends Component<IProps, {}> {
+     }
+     if (this.table) {
+       // Load the `table` in the `<perspective-viewer>` DOM reference.
+-
+       // Add more Perspective configurations here.
++      elem.setAttribute('view','y_line');
++      elem.setAttribute('column-pivots', '["stock"]');
++      elem.setAttribute('row-pivots', '["timestamp"]');
++      elem.setAttribute('columns','["top_ask_price"]');
++      elem.setAttribute('aggregates',
++        `{"stocks": "distinct count",
++          "top_ask_price": "avg",
++          "top_bid_price": "avg",
++          "timestamp": "distinct count"
++        }`);
+       elem.load(this.table);
+     }
+   }
+-- 
+2.20.1 (Apple Git-117)
+
